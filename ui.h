@@ -16,6 +16,7 @@ char *prompt_hostname(void);
 char *prompt_cwd(void);
 int prompt_status(void);
 unsigned int prompt_cmd_num(void);
+void set_status(int);
 
 char *read_command(void);
 

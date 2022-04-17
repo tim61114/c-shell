@@ -1,6 +1,7 @@
 #include <stddef.h>
 
 #include "history.h"
+#include "elist.h"
 
 void hist_init(unsigned int limit)
 {
