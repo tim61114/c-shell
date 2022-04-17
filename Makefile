@@ -1,5 +1,5 @@
 # Output binary name
-bin=crash
+bin=sh
 lib=libshell.so
 
 # Set the following to '0' to disable log messages:
