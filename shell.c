@@ -35,10 +35,8 @@ int main(void)
             free(command);
             break;
         }
-        char* command_copy = strdup(command);
-        //LOGP(command);
+        char *command_copy = strdup(command);
         char *comment_finder = strchr(command, '#');
-//        printf("%s\n", comment_finder);
         if (comment_finder != NULL) {
             *comment_finder ='\0';
         }
@@ -54,6 +52,7 @@ int main(void)
         tokens[token_count] = (char*) 0;
 
         if (tokens[0] == NULL) {
+            free(command_copy);
             free(command);
             continue;
         }
@@ -63,13 +62,7 @@ int main(void)
             free(command);
             break;
         }
-
-        /*if (!strncmp(tokens[0], "#", 1)) {
-
-            free(command);
-            continue;        
-        }*/
-
+        
         if (!strcmp(tokens[0], "history")) {
             hist_add(command_copy);
             hist_print();
@@ -79,8 +72,19 @@ int main(void)
         }
 
         if (!strncmp(tokens[0], "!", 1)) {
+            char *param = NULL;
+            int res = strtol(&tokens[0][1], &param, 10);
+            if (!res) {
+                if (tokens[0][1] == '!') {
+                    printf("%s\n", hist_search_cnum(hist_last_cnum()));
+                } else {
+                    printf("%s\n", hist_search_prefix(&tokens[0][1]));
+                }
+            } else {
+                printf("%s\n", hist_search_cnum(res));
+            }
+
             hist_add(command_copy);
-            hist_print();
             free(command_copy);
             free(command);
             continue;
