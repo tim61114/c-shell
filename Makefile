@@ -10,7 +10,7 @@ CFLAGS += -g -Wall -fPIC -DLOGGER=$(LOGGER)
 LDLIBS += -lm -lreadline
 LDFLAGS += -L. -Wl,-rpath='$$ORIGIN'
 
-src=history.c shell.c ui.c
+src=history.c shell.c ui.c elist.c
 obj=$(src:.c=.o)
 
 all: $(bin) $(lib)
@@ -22,7 +22,7 @@ $(lib): $(obj)
 	$(CC) $(CFLAGS) $(LDLIBS) $(LDFLAGS) $(obj) -shared -o $@
 
 shell.o: shell.c history.h logger.h ui.h
-history.o: history.c history.h logger.h
+history.o: history.c history.h logger.h elist.c elist.h
 ui.o: ui.h ui.c logger.h history.h
 
 clean:

@@ -1,9 +1,18 @@
 # Project 3: Command Line Shell
-TODO: Replace this section with a short (1-3 paragraph) description of the project. What it does, how it does it, and any features that stand out. If you ever need to refer back to this project, the description should jog your memory.
+This is a shell supporting basic commands, pipeline action and I/O redirection.
+
+Things you can do
+```
+cd
+ls
+./sh
+top
+cat test.txt > another_file.txt
+ls -l | sort | wc
+```
 
 ## Building
 
-TODO: Update this section as necessary.
 
 To compile and run:
 
@@ -14,7 +23,7 @@ make
 
 ## Program Options
 
-TODO: Provide an overview of program options and their descriptions, if applicable. If the program does not accept any options, delete this section.
+This is a shell that does shell things (definitely not selling extremely expensive gas)
 
 ```bash
 $ ./some_prog -h
@@ -27,9 +36,9 @@ Options:
 
 ## Included Files
 
-* **file1.c** -- TODO: Describe any major program modules here.
-* **file2.h** -- TODO: You don't need to include utilities, makefiles, etc.
-* **file3.asm** -- TODO: Just the most important files! (And don't forget their descriptions)
+* **shell.c** -- Where the magic happens/ where things get nasty
+* **ui.c** -- Handler for input commands and prompt
+* **history.c** -- Provide methods to query previous commands
 
 ## Testing
 
@@ -57,5 +66,5 @@ make grade
 
 ## Demo Run
 
-TODO: add a screenshot / text of a demo run of your program here.
+[test.png]
 

@@ -107,7 +107,6 @@ int elist_remove(struct elist *list, size_t idx)
     for (int i = idx + 1; i < list->size; i++) {
         list->element_storage[i - 1] = list->element_storage[i];
     }
-    //memmove(list->element_storage + idx, list->element_storage + idx + 1, sizeof(list->element_storage) * (list->size - idx - 1));
     list->size--;
     return 0;
 }
@@ -140,5 +139,5 @@ void elist_sort(struct elist *list, int (*comparator)(const void *, const void *
 
 bool idx_is_valid(struct elist *list, size_t idx)
 {
-    return idx >= 0 && idx < list->size;
+    return idx < list->size;
 }

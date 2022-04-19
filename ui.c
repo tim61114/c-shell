@@ -40,11 +40,10 @@ void destroy_ui(void)
 
 char *prompt_line(void)
 {
-    //printf("%d\n", prompt_status());
-    const char *status = prompt_status() ? bad_str : good_str;
+    const char *status_str = prompt_status() ? bad_str : good_str;
 
     char cmd_num[25];
-    snprintf(cmd_num, 25, "%d", prompt_cmd_num());
+    snprintf(cmd_num, 25, "%u", prompt_cmd_num());
 
     char *user = prompt_username();
     char *host = prompt_hostname();
@@ -54,7 +53,7 @@ char *prompt_line(void)
 
     size_t prompt_sz
         = strlen(format_str)
-        + strlen(status)
+        + strlen(status_str)
         + strlen(cmd_num)
         + strlen(user)
         + strlen(host)
@@ -64,7 +63,7 @@ char *prompt_line(void)
     char *prompt_str =  malloc(sizeof(char) * prompt_sz);
 
     snprintf(prompt_str, prompt_sz, format_str,
-            status,
+            status_str,
             cmd_num,
             user,
             host,
@@ -81,9 +80,9 @@ char *prompt_username(void)
 {
     uid_t uid = geteuid();
     struct passwd *user = getpwuid(uid);
-    char *username = strdup(user->pw_name);
+    char *username = user != NULL ? strdup(user->pw_name) : NULL;
 
-    return user ? username : NULL;
+    return username;
 }
 
 char *prompt_hostname(void)
@@ -130,27 +129,25 @@ unsigned int prompt_cmd_num(void)
 
 char *read_command(void)
 {
-    //implement scripting support here
-    //if we are receiving commands from a user, then do the following.
     char *prompt = prompt_line();
     if (isatty(fileno(stdin))) {
-//        LOGP("a\n");
         char *command = readline(prompt);
         free(prompt);
+        rl_clear_history();
         return command;
     }
     else {
-        //LOGP("b\n");
+        free(prompt);
+        char *line = NULL;
         size_t line_sz;
-        ssize_t num_chars = getline(&prompt, &line_sz, stdin);
-        //getline(&prompt, &line_sz, stdin);
-        //LOGP(prompt);
-        
-        return num_chars == -1 ? NULL : prompt;
+        ssize_t num_chars = getline(&line, &line_sz, stdin); 
+        if (num_chars == -1) {
+            free(line);
+            return NULL;
+        }
+        *(strrchr(line, '\n')) = '\0';
+        return line;
     }
-    //if we are receiving commands from a **script**, then do the following:
-    // <insert code that uses getline instead of readline here>
-    return "";
 }
 
 int readline_init(void)

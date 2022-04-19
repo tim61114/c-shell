@@ -26,14 +26,22 @@ void sigint_handler(int signo) {
 int main(void)
 {
     init_ui();
+    hist_init(100);
     signal(SIGINT, sigint_handler);
     char *command;
     while (true) {
         command = read_command();
         if (command == NULL) {
+            free(command);
             break;
         }
-
+        char* command_copy = strdup(command);
+        //LOGP(command);
+        char *comment_finder = strchr(command, '#');
+//        printf("%s\n", comment_finder);
+        if (comment_finder != NULL) {
+            *comment_finder ='\0';
+        }
         char *tokens[100];
         int token_count = 0;
         char *next_tok = command;
@@ -44,36 +52,61 @@ int main(void)
         }
         free(next_tok);
         tokens[token_count] = (char*) 0;
-        
+
         if (tokens[0] == NULL) {
+            free(command);
             continue;
         }
 
         if (!strcmp(tokens[0], "exit")) {
+            free(command_copy);
+            free(command);
             break;
         }
 
-        if (!strncmp(tokens[0], "#", 1)) {
+        /*if (!strncmp(tokens[0], "#", 1)) {
+
+            free(command);
             continue;        
+        }*/
+
+        if (!strcmp(tokens[0], "history")) {
+            hist_add(command_copy);
+            hist_print();
+            free(command_copy);
+            free(command);
+            continue;
+        }
+
+        if (!strncmp(tokens[0], "!", 1)) {
+            hist_add(command_copy);
+            hist_print();
+            free(command_copy);
+            free(command);
+            continue;
         }
 
         if (!strcmp(tokens[0], "cd")) {
+            hist_add(command_copy);
             char *path = malloc(200);
+            char *user = prompt_username();
             if (tokens[1] == NULL) {
-                strcpy(path, "..");
+                sprintf(path, "/home/%s", user);
             } else if (!strncmp(tokens[1], "~", 1)) {
-                char *user = prompt_username();
                 sprintf(path, "/home/%s%s",user, tokens[1] + 1);
                 free(user);
             } else {
                 strcpy(path, tokens[1]);
             }
+            free(user);
             int status = chdir(path);
             free(path);
             set_status(status);
             if (status == -1) {
                 perror("cd");
             }
+            free(command_copy);
+            free(command);
             continue;
         } 
         
@@ -83,25 +116,26 @@ int main(void)
             perror("fork");
 
         } else if (child == 0) {
-
             execvp(tokens[0], tokens);
-            perror("sh");
             close(STDIN_FILENO);
+            perror("sh");
+            free(command);
+            free(command_copy);
             return EXIT_FAILURE;
 
         } else {
-
+            hist_add(command_copy);
             int status;
             wait(&status);
             set_status(status);
-
         }
-    
+        free(command_copy);
+        free(command);
         //LOG("Input command: %s\n", command);
         //int status;
         /* We are done with command; free it */
-        free(command);
     }
+    hist_destroy();
 //    destroy_ui();
     return 0;
 }
