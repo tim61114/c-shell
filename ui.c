@@ -95,7 +95,7 @@ char *prompt_hostname(void)
 char *prompt_cwd(void)
 {
     char *username = prompt_username();   
-    char *home = malloc( 7 + strlen(username)); // /home/$USRNAME
+    char home[100];
     sprintf(home, "/home/%s", username);
     free(username);
     int home_len = strlen(home);
@@ -106,10 +106,8 @@ char *prompt_cwd(void)
         char *temp = malloc(strlen(buf) - home_len + 2);
         sprintf(temp, "~%s", buf + home_len);
         free(buf);
-        free(home);
         return temp;
     }
-    free(home);
     return buf;
 }
 

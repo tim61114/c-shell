@@ -22,44 +22,71 @@ void sigint_handler(int signo) {
     }
 }
 
+int execute_command(char **tokens) {
+    pid_t child = fork();
+    if (child == -1) {
+        perror("fork");
+        exit(1);
+    } else if (child == 0) {
+        execvp(tokens[0], tokens);
+        free(tokens);
+        close(STDIN_FILENO);
+        perror("sh");
+        exit(1);
+    } else {
+        int status;
+        wait(&status);
+        return status;
+    }
+}
+
+char **parse_command(char *command) {
+    char **tokens = malloc(1000);
+    int token_count = 0;
+    char *next_tok = command;
+    char *curr_tok;
+
+    while ((curr_tok = next_token(&next_tok, " \t\n\r")) != NULL) {
+        tokens[token_count++] = curr_tok;
+    }
+    free(next_tok);
+    tokens[token_count] = (char*) 0;
+    return tokens;
+}
+
 
 int main(void)
 {
     init_ui();
     hist_init(100);
     signal(SIGINT, sigint_handler);
-    char *command;
     while (true) {
-        command = read_command();
+        char *command = read_command();
+        LOG("Input command: %s\n", command);
         if (command == NULL) {
             free(command);
             break;
         }
         char *command_copy = strdup(command);
+        LOG("%s\n", command_copy);
         char *comment_finder = strchr(command, '#');
         if (comment_finder != NULL) {
             *comment_finder ='\0';
         }
-        char *tokens[100];
-        int token_count = 0;
-        char *next_tok = command;
-        char *curr_tok;
-
-        while ((curr_tok = next_token(&next_tok, " \t\n\r")) != NULL) {
-           tokens[token_count++] = curr_tok;
-        }
-        free(next_tok);
-        tokens[token_count] = (char*) 0;
+        
+        char **tokens = parse_command(command);
 
         if (tokens[0] == NULL) {
             free(command_copy);
             free(command);
+            free(tokens);
             continue;
         }
 
         if (!strcmp(tokens[0], "exit")) {
             free(command_copy);
             free(command);
+            free(tokens);
             break;
         }
         
@@ -68,6 +95,7 @@ int main(void)
             hist_print();
             free(command_copy);
             free(command);
+            free(tokens);
             continue;
         }
 
@@ -76,17 +104,40 @@ int main(void)
             int res = strtol(&tokens[0][1], &param, 10);
             if (!res) {
                 if (tokens[0][1] == '!') {
-                    printf("%s\n", hist_search_cnum(hist_last_cnum()));
+                    hist_add(hist_search_cnum(hist_last_cnum()));
+                    char **history_tokens = parse_command(strdup(hist_search_cnum(hist_last_cnum())));
+                    free(tokens);
+                    execute_command(history_tokens);
+                    free(history_tokens);
                 } else {
-                    printf("%s\n", hist_search_prefix(&tokens[0][1]));
+                    if (!hist_search_prefix(&tokens[0][1])) {
+                        free(tokens);
+                        continue;
+                    }
+                    hist_add(hist_search_prefix(&tokens[0][1]));
+                    char **history_tokens = parse_command(strdup(hist_search_prefix(&tokens[0][1])));
+                    free(tokens);
+                    execute_command(history_tokens);
+                    free(history_tokens);
                 }
             } else {
-                printf("%s\n", hist_search_cnum(res));
+                if (!hist_search_cnum(res)) {
+                   // LOGP("IS NULL\n");
+                    free(tokens);
+                    continue;
+                }
+                //LOG("%s\n", hist_search_cnum(res));
+                hist_add(hist_search_cnum(res));
+                char **history_tokens = parse_command(strdup(hist_search_cnum(res)));
+                free(tokens);
+                execute_command(history_tokens);
+                free(history_tokens);
+
             }
 
-            hist_add(command_copy);
             free(command_copy);
             free(command);
+            //free(tokens);
             continue;
         }
 
@@ -98,7 +149,6 @@ int main(void)
                 sprintf(path, "/home/%s", user);
             } else if (!strncmp(tokens[1], "~", 1)) {
                 sprintf(path, "/home/%s%s",user, tokens[1] + 1);
-                free(user);
             } else {
                 strcpy(path, tokens[1]);
             }
@@ -111,30 +161,16 @@ int main(void)
             }
             free(command_copy);
             free(command);
+            free(tokens);
             continue;
         } 
         
-        pid_t child = fork();
-        if (child == -1) {
-
-            perror("fork");
-
-        } else if (child == 0) {
-            execvp(tokens[0], tokens);
-            close(STDIN_FILENO);
-            perror("sh");
-            free(command);
-            free(command_copy);
-            return EXIT_FAILURE;
-
-        } else {
-            hist_add(command_copy);
-            int status;
-            wait(&status);
-            set_status(status);
-        }
+        set_status(execute_command(tokens));
+        //LOGP(command_copy);
+        hist_add(command_copy);
         free(command_copy);
         free(command);
+        free(tokens);
         //LOG("Input command: %s\n", command);
         //int status;
         /* We are done with command; free it */
