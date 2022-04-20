@@ -40,6 +40,7 @@ int execute_command(char **tokens) {
     }
 }
 
+
 char **parse_command(char *command) {
     char **tokens = malloc(1000);
     int token_count = 0;
@@ -55,6 +56,99 @@ char **parse_command(char *command) {
 }
 
 
+int command_handler(char *command) {
+
+    char *command_copy = strdup(command);
+    char *comment_finder = strchr(command, '#');
+    if (comment_finder != NULL) {
+        *comment_finder ='\0';
+    }
+
+    char **tokens = parse_command(command);
+
+    if (tokens[0] == NULL) {
+        free(command_copy);
+        return 1;
+    }
+
+    if (!strcmp(tokens[0], "exit")) {
+
+        free(command_copy);
+        free(tokens);
+        return 0;
+
+    } else if (!strcmp(tokens[0], "history")) {
+
+        hist_add(command_copy);
+        hist_print();
+        free(tokens);
+
+    } else if (!strncmp(tokens[0], "!", 1)) {
+
+        char *param = NULL;
+        int res = strtol(&tokens[0][1], &param, 10);
+
+        if (!res) {
+            if (tokens[0][1] == '!') {
+                free(command_copy);
+                free(tokens);
+                command_handler((char *)hist_search_cnum(hist_last_cnum()));
+                return 1;
+                            } else {
+                if (!hist_search_prefix(&tokens[0][1])) {
+                    free(tokens);
+                    free(command_copy);
+                    return 1;
+                }
+                free(command_copy);
+                command_handler(strdup(hist_search_prefix(&tokens[0][1])));
+                free(tokens);
+                return 1;
+            }
+        } else {
+            if (!hist_search_cnum(res)) {
+                free(command_copy);
+                free(tokens);
+                return 1;
+            }
+            free(command_copy);
+            free(tokens);
+            command_handler(strdup(hist_search_cnum(res)));
+            return 1;
+        }
+    } else if (!strcmp(tokens[0], "cd")) {
+        hist_add(command_copy);
+        char path[200];
+        char *user = prompt_username();
+        if (tokens[1] == NULL) {
+            sprintf(path, "/home/%s", user);
+        } else if (!strncmp(tokens[1], "~", 1)) {
+            sprintf(path, "/home/%s%s",user, tokens[1] + 1);
+        } else {
+            strcpy(path, tokens[1]);
+        }
+        free(user);
+        int status = chdir(path);
+        set_status(status);
+        if (status == -1) {
+            perror("cd");
+        }
+        free(command_copy);
+        return 1;
+    } else {
+        set_status(execute_command(tokens));
+        hist_add(command_copy);
+        free(command_copy);
+        return 1;
+    }
+    
+    return 1;
+
+}
+
+
+
+
 int main(void)
 {
     init_ui();
@@ -62,118 +156,18 @@ int main(void)
     signal(SIGINT, sigint_handler);
     while (true) {
         char *command = read_command();
-        LOG("Input command: %s\n", command);
+        //LOG("Input command: %s\n", command);
         if (command == NULL) {
             free(command);
             break;
         }
-        char *command_copy = strdup(command);
-        LOG("%s\n", command_copy);
-        char *comment_finder = strchr(command, '#');
-        if (comment_finder != NULL) {
-            *comment_finder ='\0';
-        }
-        
-        char **tokens = parse_command(command);
-
-        if (tokens[0] == NULL) {
-            free(command_copy);
-            free(command);
-            free(tokens);
-            continue;
-        }
-
-        if (!strcmp(tokens[0], "exit")) {
-            free(command_copy);
-            free(command);
-            free(tokens);
+                 
+        if (!command_handler(command)) {
+            //free(command);
             break;
         }
-        
-        if (!strcmp(tokens[0], "history")) {
-            hist_add(command_copy);
-            hist_print();
-            free(command_copy);
-            free(command);
-            free(tokens);
-            continue;
-        }
-
-        if (!strncmp(tokens[0], "!", 1)) {
-            char *param = NULL;
-            int res = strtol(&tokens[0][1], &param, 10);
-            if (!res) {
-                if (tokens[0][1] == '!') {
-                    hist_add(hist_search_cnum(hist_last_cnum()));
-                    char **history_tokens = parse_command(strdup(hist_search_cnum(hist_last_cnum())));
-                    free(tokens);
-                    execute_command(history_tokens);
-                    free(history_tokens);
-                } else {
-                    if (!hist_search_prefix(&tokens[0][1])) {
-                        free(tokens);
-                        continue;
-                    }
-                    hist_add(hist_search_prefix(&tokens[0][1]));
-                    char **history_tokens = parse_command(strdup(hist_search_prefix(&tokens[0][1])));
-                    free(tokens);
-                    execute_command(history_tokens);
-                    free(history_tokens);
-                }
-            } else {
-                if (!hist_search_cnum(res)) {
-                   // LOGP("IS NULL\n");
-                    free(tokens);
-                    continue;
-                }
-                //LOG("%s\n", hist_search_cnum(res));
-                hist_add(hist_search_cnum(res));
-                char **history_tokens = parse_command(strdup(hist_search_cnum(res)));
-                free(tokens);
-                execute_command(history_tokens);
-                free(history_tokens);
-
-            }
-
-            free(command_copy);
-            free(command);
-            //free(tokens);
-            continue;
-        }
-
-        if (!strcmp(tokens[0], "cd")) {
-            hist_add(command_copy);
-            char *path = malloc(200);
-            char *user = prompt_username();
-            if (tokens[1] == NULL) {
-                sprintf(path, "/home/%s", user);
-            } else if (!strncmp(tokens[1], "~", 1)) {
-                sprintf(path, "/home/%s%s",user, tokens[1] + 1);
-            } else {
-                strcpy(path, tokens[1]);
-            }
-            free(user);
-            int status = chdir(path);
-            free(path);
-            set_status(status);
-            if (status == -1) {
-                perror("cd");
-            }
-            free(command_copy);
-            free(command);
-            free(tokens);
-            continue;
-        } 
-        
-        set_status(execute_command(tokens));
-        //LOGP(command_copy);
-        hist_add(command_copy);
-        free(command_copy);
-        free(command);
-        free(tokens);
-        //LOG("Input command: %s\n", command);
-        //int status;
-        /* We are done with command; free it */
+                            
+        //free(command);
     }
     hist_destroy();
 //    destroy_ui();
