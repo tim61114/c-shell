@@ -32,9 +32,9 @@ void hist_destroy(void)
 void hist_add(const char *cmd)
 {
     if (elist_size(history) < 100) {
-        elist_add(history, (char *) strdup(cmd));
+        elist_add(history, (char *) cmd);
     } else {
-        elist_set(history, (cur_index + 1) % 100, (char *) strdup(cmd));
+        elist_set(history, (cur_index + 1) % 100, (char *) cmd);
     }
     cur_index = (cur_index + 1) % 100;
     ++num_commands;
@@ -55,7 +55,6 @@ const char *hist_search_prefix(char *prefix)
         if (!strncmp(prefix, temp, strlen(prefix))) {
             return temp;
         }
-        //free(temp);
     }
     return NULL;
 }
