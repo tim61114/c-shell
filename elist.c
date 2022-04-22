@@ -11,11 +11,11 @@
 #define DEFAULT_INIT_SZ 10
 #define RESIZE_MULTIPLIER 2
 
-struct elist {
-    size_t capacity;         /*!< Storage space allocated for list items */
-    size_t size;             /*!< The actual number of items in the list */
-    void **element_storage;  /*!< Pointer to the beginning of the array  */
-};
+//struct elist {
+//    size_t capacity;         /*!< Storage space allocated for list items */
+//    size_t size;             /*!< The actual number of items in the list */
+//    void **element_storage;  /*!< Pointer to the beginning of the array  */
+//};
 
 bool idx_is_valid(struct elist *list, size_t idx);
 
@@ -91,6 +91,20 @@ int elist_set(struct elist *list, size_t idx, void *item)
 void *elist_get(struct elist *list, size_t idx)
 {
     return idx >= list->size ? NULL : list->element_storage[idx];
+}
+
+//return a copy of a sublist
+struct elist *elist_get_sub(struct elist *list, size_t start_idx, size_t end_idx) 
+{
+    if(end_idx >= elist_size(list)) {
+        return NULL;
+    }
+    struct elist *temp = elist_create(10);
+    for (int i = start_idx; i <= end_idx; i++) {
+        elist_add(temp, elist_get(list, i));
+    }
+
+    return temp;
 }
 
 size_t elist_size(struct elist *list)

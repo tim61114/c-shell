@@ -10,9 +10,17 @@
 #include <unistd.h>
 
 #include "history.h"
+#include "elist.h"
 #include "logger.h"
 #include "ui.h"
 
+
+struct cmd_struct {
+    struct elist* tokens;
+    bool stdout_pipe;
+    char *stdout_file;
+    char *stdin_file;
+};
 
 char *next_token(char **str_ptr, const char *delim);
 
@@ -22,79 +30,160 @@ void sigint_handler(int signo) {
     }
 }
 
-int execute_command(char **tokens) {
+
+void destroy_cmds(struct elist *list) {
+    for (int i = 0; i < elist_size(list); i++) {
+        struct cmd_struct *temp = elist_get(list, i);
+        elist_destroy(temp->tokens);
+        free(temp);
+    }
+    elist_destroy(list);
+}
+//int execute_command(struct elist *tokens) {
+//    pid_t child = fork();
+//    if (child == -1) {
+//        perror("fork");
+//        exit(1);
+//    } else if (child == 0) {
+//        char *command = elist_get(tokens, 0);
+//        execvp(command, (char**) tokens->element_storage);
+//        elist_destroy(tokens);
+//        close(STDIN_FILENO);
+//        perror("sh");
+//        exit(1);
+//    } else {
+//        elist_destroy(tokens);
+//        int status;
+//        wait(&status);
+//        return status;
+//    }
+//}
+
+
+int execute_pipeline(struct elist *cmds)
+{
+    int fd[2];
+    int i;
+
+    for (i = 0; ((struct cmd_struct *)elist_get(cmds, i))->stdout_pipe; i++) {
+            pipe(fd);
+            pid_t pid = fork();
+            if (pid == 0) { //children
+                close(fd[0]);
+                dup2(fd[1], STDOUT_FILENO);
+                char *command = elist_get( ((struct cmd_struct *)elist_get(cmds, i))->tokens, 0);
+                execvp(command,
+                    (char **)((struct cmd_struct *)elist_get(cmds, i))->tokens->element_storage );        
+                close(STDIN_FILENO);
+                perror("sh");
+                exit(1);
+
+            } else { //parent
+                close(fd[1]);
+                dup2(fd[0], STDIN_FILENO);
+            }
+    }  //end of commands
+
+
+    LOG("%s\n", ((struct cmd_struct *)elist_get(cmds, i))->stdout_file);
+    int output = open(((struct cmd_struct *)elist_get(cmds, i))->stdout_file, O_CREAT | O_WRONLY, 0666);
+    dup2(output, STDOUT_FILENO);
     pid_t child = fork();
     if (child == -1) {
         perror("fork");
         exit(1);
     } else if (child == 0) {
-        execvp(tokens[0], tokens);
-        free(tokens);
+    LOG("%d\n", child);
+        char *command = elist_get(((struct cmd_struct *)elist_get(cmds, i))->tokens, 0);
+        LOG("%s\n",command);
+        execvp(command,
+            (char **)((struct cmd_struct *)elist_get(cmds, i))->tokens->element_storage );
+
+        destroy_cmds(cmds);
+        
+        LOG("%s\n",command);
         close(STDIN_FILENO);
         perror("sh");
         exit(1);
     } else {
-        free(tokens);
+//    LOG("%d\n", child);
+        destroy_cmds(cmds); //free cmd_struct elist and cmds itself
         int status;
         wait(&status);
         return status;
     }
+ 
 }
-
-
-char **parse_command(char *command) {
-    char **tokens = malloc(1000);
-    int token_count = 0;
+       
+struct elist *tokenize_command(char *command) {
+    struct elist *tokens = elist_create(10);
     char *next_tok = command;
     char *curr_tok;
 
     while ((curr_tok = next_token(&next_tok, " \t\n\r")) != NULL) {
-        tokens[token_count++] = curr_tok;
+        elist_add(tokens, curr_tok);
     }
-    tokens[token_count] = (char*) 0;
+    elist_add(tokens, (char *) 0);
     return tokens;
 }
 
-/*int execute_pipeline(char *command) {
-    int fd[2];
-    //LOGP(command);
-    char *temp = strchr(command, '|');
-    char *temptemp;
-    if (temp) {
-        *temp = '\0';
-        temptemp = temp + 1;
-        pipe(fd);
-        pid_t pid = fork();
-        if (pid == 0) {
-            close(fd[0]);
-            dup2(fd[1], STDOUT_FILENO);
-            char **tokens = parse_command(strdup(command));
-            LOG("%s\n", command);
-            execvp(tokens[0], tokens);
-        } else {
-            wait(&pid);
-            close(fd[1]);
-            dup2(fd[0], STDIN_FILENO);
+struct elist *parse_command (struct elist *command_tok) {
+    struct elist *cmds = elist_create(1);
+    int i = 0, j = 0;
+    //struct elist *command_tok = tokenize_command(command);   
+    while (j < elist_size(command_tok) - 1) {
+        struct cmd_struct *temp;
+        if (!strcmp(elist_get(command_tok, j), "|")) {    
+            int k = 0;
+            while (k < j) {
+                LOG("%s\n", (char*) elist_get(command_tok, k++));
+            }
 
-            execute_pipeline(temptemp);
-        }
-    } else {
-        LOG("%s\n", command);
-        char **tokens = parse_command(command);
-        pipe(fd);
-        pid_t pid = fork();
-        if (pid == 0) {
-            close(fd[0]);
-            dup2(fd[1], STDOUT_FILENO);
-            char **tokens = parse_command(strdup(command));
-            execvp(tokens[0], tokens);
-        } else {
-            return 0;
-        }
+            temp = malloc(sizeof(struct cmd_struct));
+            temp->tokens = elist_get_sub(command_tok, i, j - 1);
+            temp->stdout_pipe = true;
+            temp->stdout_file = NULL;
+            temp->stdin_file = NULL;
+            elist_add(cmds, temp);
+            i = j + 1;
+        } else if (!strcmp(elist_get(command_tok, j), ">")) { 
+            int k = 0;
+            while (k < j) {
+                LOG("%s\n", (char*) elist_get(command_tok, k++));
+            }
 
+            temp = malloc(sizeof(struct cmd_struct));
+            temp->tokens = elist_get_sub(command_tok, i, j - 1);
+            temp->stdout_pipe = false;
+            temp->stdout_file = elist_get(command_tok, j + 1);
+            temp->stdin_file = NULL;
+            elist_add(cmds, temp);
+            i = j + 2;
+        } else if (!strcmp(elist_get(command_tok, j), "<")) {
+            temp = malloc(sizeof(struct cmd_struct));
+            temp->tokens = elist_get_sub(command_tok, i, j - 1);
+            temp->stdout_pipe = false;
+            temp->stdout_file = NULL;
+            temp->stdin_file = elist_get(command_tok, j + 1);
+            elist_add(cmds, temp);
+            i = j + 2;
+        }
+        j++;
     }
-    return 0;
-}*/
+    LOG("%d, %d\n", i, j);
+
+    //no pipe/io redirection 
+    if (i < j) {
+        struct cmd_struct *temp = malloc(sizeof(struct cmd_struct));
+        temp->tokens = elist_get_sub(command_tok, i, elist_size(command_tok) - 1);//command_tok;
+        temp->stdout_pipe = false;
+        temp->stdout_file = NULL;
+        temp->stdin_file = NULL;
+        elist_add(cmds, temp);
+    }
+    elist_destroy(command_tok);
+    return cmds;
+}
 
 // guidelines on freeing memory:
 // always free parsed commands (tokens)
@@ -109,75 +198,77 @@ int command_handler(char *command) {
     char *comment_finder = strchr(command, '#');
     if (comment_finder != NULL) {
         *comment_finder ='\0';
-        //free(comment_finder + 1);
     }
 
-    char **tokens = parse_command(command);
+    struct elist *tokens = tokenize_command(command);
 
-    if (tokens[0] == NULL) {
+    if (elist_get(tokens, 0) == NULL) {
         free(command_copy);
         free(command);
-        free(tokens);
+        elist_destroy(tokens);
         return 1;
     }
 
-    if (!strcmp(tokens[0], "exit")) {
+    if (!strcmp(elist_get(tokens, 0), "exit")) {
         free(command_copy);
         free(command);
-        free(tokens);
+        elist_destroy(tokens);
         return 0;
 
-    } else if (!strcmp(tokens[0], "history")) {
+    } else if (!strcmp(elist_get(tokens, 0), "history")) {
         hist_add(command_copy);
         hist_print();
         free(command);
-        free(tokens);
+        elist_destroy(tokens);
+        return 1;
 
-    } else if (!strncmp(tokens[0], "!", 1)) {
+    } else if (!strncmp(elist_get(tokens, 0), "!", 1)) {
 
         char *param = NULL;
-        int res = strtol(&tokens[0][1], &param, 10);
+        char *temp = elist_get(tokens, 0);
+        int res = strtol(&temp[1], &param, 10);
         
         if (!res) {
-            if (tokens[0][1] == '!') {
+            if (temp[1] == '!') {
                 free(command_copy);
                 free(command);
-                free(tokens);
+                elist_destroy(tokens);
                 command_handler(strdup(hist_search_cnum(hist_last_cnum())));
                 return 1;
             } else {
-                if (!hist_search_prefix(&tokens[0][1])) {
+                if (!hist_search_prefix(&temp[1])) {
                     free(command_copy);
                     free(command);
-                    free(tokens);
+                    elist_destroy(tokens);
                     return 1;
                 }
-                command_handler(strdup((hist_search_prefix(&tokens[0][1]))));
+                command_handler(strdup((hist_search_prefix(&temp[1]))));
                 free(command_copy);
                 free(command);
-                free(tokens);
+                elist_destroy(tokens);
                 return 1;
             }
         } else {
             free(command_copy);
             free(command);
-            free(tokens);
+            elist_destroy(tokens);
             if (!hist_search_cnum(res)) {
                 return 1;
             }
             command_handler(strdup((hist_search_cnum(res))));
             return 1;
         }
-    } else if (!strcmp(tokens[0], "cd")) {
+    } else if (!strcmp(elist_get(tokens, 0), "cd")) {
         hist_add(command_copy);
         char path[200];
         char *user = prompt_username();
-        if (tokens[1] == NULL) {
+        char *temp = elist_get(tokens, 1);
+        if (temp == NULL) {
             sprintf(path, "/home/%s", user);
-        } else if (!strncmp(tokens[1], "~", 1)) {
-            sprintf(path, "/home/%s%s",user, tokens[1] + 1);
+        } else if (!strncmp(temp, "~", 1)) {
+            sprintf(path, "/home/%s%s",user, temp + 1);
         } else {
-            strcpy(path, tokens[1]);
+            strcpy(path, temp);
         }
         free(user);
         int status = chdir(path);
@@ -186,10 +277,11 @@ int command_handler(char *command) {
             perror("cd");
         }
         free(command);
-        free(tokens);
+        elist_destroy(tokens);
         return 1;
     } else {
-        set_status(execute_command(tokens));
+//        set_status(execute_command(tokens));
+        set_status(execute_pipeline(parse_command(tokens)));
         free(command);
         hist_add(command_copy);
         return 1;
@@ -213,7 +305,8 @@ int main(void)
             free(command);
             break;
         }
-                 
+ 
+//        execute_pipeline(parse_command(command));
         if (!command_handler(strdup(command))) {
             free(command);
             break;
@@ -221,7 +314,6 @@ int main(void)
                             
         free(command);
     }
-//    hist_print();
     hist_destroy();
 //    destroy_ui();
     return 0;
