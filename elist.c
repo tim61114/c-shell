@@ -93,7 +93,7 @@ void *elist_get(struct elist *list, size_t idx)
     return idx >= list->size ? NULL : list->element_storage[idx];
 }
 
-//return a copy of a sublist
+//return a new elist with reference to the data from another elist
 struct elist *elist_get_sub(struct elist *list, size_t start_idx, size_t end_idx) 
 {
     if(end_idx >= elist_size(list)) {

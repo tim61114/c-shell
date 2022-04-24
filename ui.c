@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #include "history.h"
 #include "logger.h"
@@ -16,6 +17,7 @@ static const char *bad_str  = "🤔";
 static int readline_init(void);
 int cmd_num_count = 0;
 int status = 0;
+bool scripting = 0;
 
 void init_ui(void)
 {
@@ -29,13 +31,14 @@ void init_ui(void)
 
     if (!isatty(fileno(stdin))) {
         LOGP("data piped in on stdin; entering script mode\n");
+        scripting = 1;
     }
 }
 
 void destroy_ui(void)
 {
-       // TODO cleanup code, if necessary
-    
+    hist_destroy();   
+    puts("Deleting History...completed.");
 }
 
 char *prompt_line(void)
@@ -127,25 +130,23 @@ unsigned int prompt_cmd_num(void)
 
 char *read_command(void)
 {
+    char *command = NULL;
     char *prompt = prompt_line();
-    if (isatty(fileno(stdin))) {
-        char *command = readline(prompt);
+    if (!scripting) {
+        command = readline(prompt);
         free(prompt);
         rl_clear_history();
-        return command;
-    }
-    else {
+    } else {
         free(prompt);
-        char *line = NULL;
         size_t line_sz;
-        ssize_t num_chars = getline(&line, &line_sz, stdin); 
+        ssize_t num_chars = getline(&command, &line_sz, stdin); 
         if (num_chars == -1) {
-            free(line);
+            free(command);
             return NULL;
         }
-        *(strrchr(line, '\n')) = '\0';
-        return line;
+        *(strrchr(command, '\n')) = '\0';
     }
+    return command;
 }
 
 int readline_init(void)
