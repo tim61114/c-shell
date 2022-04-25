@@ -267,8 +267,6 @@ int command_handler(char *command) {
 }
 
 
-
-
 int main(void)
 {
     init_ui();

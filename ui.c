@@ -38,7 +38,6 @@ void init_ui(void)
 void destroy_ui(void)
 {
     hist_destroy();   
-    puts("Deleting History...completed.");
 }
 
 char *prompt_line(void)
