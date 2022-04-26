@@ -51,7 +51,7 @@ char *prompt_line(void)
     char *host = prompt_hostname();
     char *cwd = prompt_cwd();
 
-    char *format_str = "[%s][%s] %s@%s:%s ";
+    char *format_str = "%s[%s] %s@%s:%s ";
 
     size_t prompt_sz
         = strlen(format_str)

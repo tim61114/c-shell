@@ -18,6 +18,7 @@
 struct cmd_struct {
     struct elist* tokens;
     bool stdout_pipe;
+    bool append;
     char *stdout_file;
     char *stdin_file;
 };
@@ -51,9 +52,9 @@ void execute_pipeline(struct elist *cmds)
         if (pid == 0) { //children
             close(fd[0]);
             dup2(fd[1], STDOUT_FILENO);
-            char *command = elist_get( ((struct cmd_struct *)elist_get(cmds, i))->tokens, 0);
+            char *command = elist_get(((struct cmd_struct *)elist_get(cmds, i))->tokens, 0);
             execvp(command,
-                    (char **)((struct cmd_struct *)elist_get(cmds, i))->tokens->element_storage );        
+                    (char **)((struct cmd_struct *)elist_get(cmds, i))->tokens->element_storage);        
             close(STDIN_FILENO);
             perror("sh");
             exit(1);
@@ -64,14 +65,16 @@ void execute_pipeline(struct elist *cmds)
         }
     }  //end of commands
         
-   int output = open(((struct cmd_struct *)elist_get(cmds, i))->stdout_file, O_CREAT | O_WRONLY, 0666);
-   int input = open(((struct cmd_struct *)elist_get(cmds, i))->stdin_file, O_RDONLY );
+   struct cmd_struct *cur_cmd = elist_get(cmds, i);
+   int output = cur_cmd->append ? 
+       open(cur_cmd->stdout_file, O_CREAT | O_WRONLY | O_APPEND, 0666) : 
+       open(cur_cmd->stdout_file, O_CREAT | O_WRONLY | O_TRUNC, 0666);
+   int input = open(((struct cmd_struct *)elist_get(cmds, i))->stdin_file, O_RDONLY);
    dup2(output, STDOUT_FILENO);
    dup2(input, STDIN_FILENO);
 
-   char *command = elist_get(((struct cmd_struct *)elist_get(cmds, i))->tokens, 0);
-   execvp(command,
-           (char **)((struct cmd_struct *)elist_get(cmds, i))->tokens->element_storage );
+   char *command = elist_get(cur_cmd->tokens, 0);   
+   execvp(command, (char **)cur_cmd->tokens->element_storage);
 
 }
 
@@ -119,32 +122,46 @@ struct elist *parse_command (struct elist *command_tok) {
             temp->tokens = elist_get_sub(command_tok, i, j - 1);
             elist_add(temp->tokens, (char *) 0);
             temp->stdout_pipe = true;
+            temp->append = false;
             temp->stdout_file = NULL;
             temp->stdin_file = NULL;
             elist_add(cmds, temp);
             i = j + 1;
 
-        } else if (!strcmp(elist_get(command_tok, j), ">")) { 
-
-            temp = malloc(sizeof(struct cmd_struct));
-            temp->tokens = elist_get_sub(command_tok, i, j - 1);
-            elist_add(temp->tokens, (char *) 0);
-            temp->stdout_pipe = false;
-            temp->stdout_file = elist_get(command_tok, j + 1);
-            temp->stdin_file = NULL;
-            elist_add(cmds, temp);
+        } else if (!strncmp(elist_get(command_tok, j), ">", 1)) { 
+            if (elist_size(cmds) == 0) { 
+                temp = malloc(sizeof(struct cmd_struct));
+                temp->tokens = elist_get_sub(command_tok, i, j - 1);
+                elist_add(temp->tokens, (char *) 0);
+                temp->stdout_pipe = false;
+                temp->append = strlen(elist_get(command_tok, j)) == 2 ? true : false;
+                temp->stdout_file = elist_get(command_tok, j + 1);
+                temp->stdin_file = NULL;
+                elist_add(cmds, temp);
+            } else {
+                struct cmd_struct *prev_cmd = elist_get(cmds, elist_size(cmds) - 1);
+                prev_cmd->stdout_file = elist_get(command_tok, j + 1);
+                prev_cmd->append = strlen(elist_get(command_tok, j)) == 2 ? true : false;
+            }
             i = j + 2;
             ++j;
+            
 
         } else if (!strcmp(elist_get(command_tok, j), "<")) {
-            
-            temp = malloc(sizeof(struct cmd_struct));
-            temp->tokens = elist_get_sub(command_tok, i, j - 1);
-            elist_add(temp->tokens, (char *) 0);
-            temp->stdout_pipe = false;
-            temp->stdout_file = NULL;
-            temp->stdin_file = elist_get(command_tok, j + 1);
-            elist_add(cmds, temp);
+            if (elist_size(cmds) == 0) {
+                temp = malloc(sizeof(struct cmd_struct));
+                temp->tokens = elist_get_sub(command_tok, i, j - 1);
+                elist_add(temp->tokens, (char *) 0);
+                temp->stdout_pipe = false;
+                temp->append = false;
+                temp->stdout_file = NULL;
+                temp->stdin_file = elist_get(command_tok, j + 1);
+                elist_add(cmds, temp);
+            } else {
+                struct cmd_struct *prev_cmd = elist_get(cmds, elist_size(cmds) - 1);
+                prev_cmd->stdin_file = elist_get(command_tok, j + 1);
+
+            }
             i = j + 2;
             ++j;
         }
