@@ -122,7 +122,8 @@ make grade
 ![Flow chart](https://user-images.githubusercontent.com/11361069/164952117-66d9463e-146b-4309-8489-5f6803923e17.png)
 
 ## Demo Run
-
-[test.png]
+![demo1](https://user-images.githubusercontent.com/11361069/165371745-369d4eac-9931-49a1-948e-806fbddc3e35.png)
+![demo2](https://user-images.githubusercontent.com/11361069/165371754-e6b58aa3-fc98-4c32-8340-f9cc5197b3c5.png)
+![demo3](https://user-images.githubusercontent.com/11361069/165372042-74ec7d81-e5ae-4676-9765-d1193072f2e7.png)
 
 
