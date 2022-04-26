@@ -32,7 +32,7 @@ void sigint_handler(int signo) {
 }
 
 void destroy_cmds(struct elist *list) {
-    for (int i = 0; i < elist_size(list); i++) {
+    for (int i = 0; i < elist_size(list); ++i) {
         struct cmd_struct *temp = elist_get(list, i);
         elist_destroy(temp->tokens);
         free(temp);
@@ -45,25 +45,25 @@ void execute_pipeline(struct elist *cmds)
     int fd[2];
     int i;
 
-   for (i = 0; ((struct cmd_struct *)elist_get(cmds, i))->stdout_pipe; i++) {
+   for (i = 0; ((struct cmd_struct *) elist_get(cmds, i))->stdout_pipe; ++i) {
 
         pipe(fd);
         pid_t pid = fork();
-        if (pid == 0) { //children
+        if (pid == 0) { 
             close(fd[0]);
             dup2(fd[1], STDOUT_FILENO);
-            char *command = elist_get(((struct cmd_struct *)elist_get(cmds, i))->tokens, 0);
-            execvp(command,
-                    (char **)((struct cmd_struct *)elist_get(cmds, i))->tokens->element_storage);        
+            struct cmd_struct *temp = elist_get(cmds, i);
+            char *command = elist_get(temp->tokens, 0);            
+            execvp(command, (char **) temp->tokens->element_storage);
             close(STDIN_FILENO);
             perror("sh");
             exit(1);
 
-        } else { //parent
+        } else { 
             close(fd[1]);
             dup2(fd[0], STDIN_FILENO);
         }
-    }  //end of commands
+    }  
         
    struct cmd_struct *cur_cmd = elist_get(cmds, i);
    int output = cur_cmd->append ? 
@@ -129,6 +129,7 @@ struct elist *parse_command (struct elist *command_tok) {
             i = j + 1;
 
         } else if (!strncmp(elist_get(command_tok, j), ">", 1)) { 
+
             if (elist_size(cmds) == 0) { 
                 temp = malloc(sizeof(struct cmd_struct));
                 temp->tokens = elist_get_sub(command_tok, i, j - 1);
@@ -145,9 +146,9 @@ struct elist *parse_command (struct elist *command_tok) {
             }
             i = j + 2;
             ++j;
-            
 
         } else if (!strcmp(elist_get(command_tok, j), "<")) {
+
             if (elist_size(cmds) == 0) {
                 temp = malloc(sizeof(struct cmd_struct));
                 temp->tokens = elist_get_sub(command_tok, i, j - 1);
@@ -164,6 +165,7 @@ struct elist *parse_command (struct elist *command_tok) {
             }
             i = j + 2;
             ++j;
+
         }
         ++j;
     }

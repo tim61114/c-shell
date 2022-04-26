@@ -100,7 +100,7 @@ struct elist *elist_get_sub(struct elist *list, size_t start_idx, size_t end_idx
         return NULL;
     }
     struct elist *temp = elist_create(10);
-    for (int i = start_idx; i <= end_idx; i++) {
+    for (int i = start_idx; i <= end_idx; ++i) {
         elist_add(temp, elist_get(list, i));
     }
 
