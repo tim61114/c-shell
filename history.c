@@ -46,6 +46,7 @@ void hist_print(void)
         char *temp = elist_get(history, (cur_index - i + 100) % 100);
         printf("%d %s\n",num_commands - i, temp);
     }
+    fflush(stdout);
 }
 
 const char *hist_search_prefix(char *prefix)
