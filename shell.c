@@ -130,9 +130,9 @@ struct elist *parse_command (struct elist *command_tok) {
 
         } else if (!strncmp(elist_get(command_tok, j), ">", 1)) { 
 
-            if (elist_size(cmds) == 0) { 
+            if (i != j) {
                 temp = malloc(sizeof(struct cmd_struct));
-                temp->tokens = elist_get_sub(command_tok, i, j - 1);
+                temp->tokens = elist_get_sub(command_tok, i, j - 1); 
                 elist_add(temp->tokens, (char *) 0);
                 temp->stdout_pipe = false;
                 temp->append = strlen(elist_get(command_tok, j)) == 2 ? true : false;
@@ -149,7 +149,7 @@ struct elist *parse_command (struct elist *command_tok) {
 
         } else if (!strcmp(elist_get(command_tok, j), "<")) {
 
-            if (elist_size(cmds) == 0) {
+            if (i != j) {
                 temp = malloc(sizeof(struct cmd_struct));
                 temp->tokens = elist_get_sub(command_tok, i, j - 1);
                 elist_add(temp->tokens, (char *) 0);
@@ -172,6 +172,7 @@ struct elist *parse_command (struct elist *command_tok) {
 
     //no pipe/io redirection or last command
     if (i < j) {
+
         struct cmd_struct *temp = malloc(sizeof(struct cmd_struct));
         temp->tokens = elist_get_sub(command_tok, i, elist_size(command_tok) - 1);
         temp->stdout_pipe = false;
