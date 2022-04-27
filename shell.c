@@ -195,24 +195,16 @@ int command_handler(char *command) {
     struct elist *tokens = tokenize_command(command);
 
     if (elist_get(tokens, 0) == NULL) {
-        free(command_copy);
-        free(command);
-        elist_destroy(tokens);
-        return 1;
+        goto free_all;
     }
 
     if (!strcmp(elist_get(tokens, 0), "exit")) {
-        free(command_copy);
-        free(command);
-        elist_destroy(tokens);
-        return 0;
+        goto exit;
 
     } else if (!strcmp(elist_get(tokens, 0), "history")) {
         hist_add(command_copy);
         hist_print();
-        free(command);
-        elist_destroy(tokens);
-        return 1;
+        goto free_some;
 
     } else if (!strncmp(elist_get(tokens, 0), "!", 1)) {
 
@@ -222,35 +214,23 @@ int command_handler(char *command) {
         
         if (!res) {
             if (temp[1] == '!') {
-                free(command_copy);
-                free(command);
-                elist_destroy(tokens);
                 command_handler(strdup(hist_search_cnum(hist_last_cnum())));
-                return 1;
+                goto free_all;
 
             } else {
                 if (!hist_search_prefix(&temp[1])) {
-                    free(command_copy);
-                    free(command);
-                    elist_destroy(tokens);
-                    return 1;
+                    goto free_all;
                 }
                 command_handler(strdup((hist_search_prefix(&temp[1]))));
-                free(command_copy);
-                free(command);
-                elist_destroy(tokens);
-                return 1;
+                goto free_all;
             }
 
         } else {
-            free(command_copy);
-            free(command);
-            elist_destroy(tokens);
             if (!hist_search_cnum(res)) {
-                return 1;
+                goto free_all;
             }
             command_handler(strdup((hist_search_cnum(res))));
-            return 1;
+            goto free_all;
         }
 
     } else if (!strcmp(elist_get(tokens, 0), "cd")) {
@@ -271,18 +251,27 @@ int command_handler(char *command) {
         if (status == -1) {
             perror("cd");
         }
-        free(command);
-        elist_destroy(tokens);
-        return 1;
-
+        goto free_some;
+        
     } else {
         set_status(execute_command(parse_command(tokens)));
         free(command);
         hist_add(command_copy);
         return 1;
     }
-    
+
+free_all:    
+    free(command_copy);
+free_some:
+    free(command);
+    elist_destroy(tokens);
     return 1;
+
+exit:
+    free(command_copy);
+    free(command);
+    elist_destroy(tokens);
+    return 0;
 
 }
 
@@ -292,25 +281,24 @@ int main(void)
     init_ui();
     hist_init(100);
     signal(SIGINT, sigint_handler);
+    char *command = NULL;
     while (true) {
-        char *command = read_command();
+        command = read_command();
         if (command == NULL) {
-            free(command);
-            break;
+            goto end;
         }
 
         if (!command_handler(strdup(command))) {
-            free(command);
-            break;
+            goto end;
         }
                             
         free(command);
     }
+end:
+    free(command);
     destroy_ui();
     return 0;
 }
-
-
 
 char *next_token(char **str_ptr, const char *delim)
 {
