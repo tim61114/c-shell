@@ -23,15 +23,6 @@ make
 ./sh
 ```
 
-## Program Options
-
-This is a shell that does shell things (definitely not selling extremely expensive gas)
-
-```bash
-$ ./some_prog -h
-Usage: ./some_prog [-z] [-d dir]
-
-```
 
 ## Included Files
 
