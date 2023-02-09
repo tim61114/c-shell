@@ -1,4 +1,4 @@
-# Project 3: Command Line Shell
+Command Line Shell in C
 This is a shell supporting basic commands, pipeline action and I/O redirection.
 
 Things you can do
@@ -83,30 +83,6 @@ make
 ### elist.c
 * **struct elist** *elist_get_sub(struct elist *, size_t, size_t) 
     * return an elist sublist of an elist between the two indexes inclusively
-
-## Testing
-
-To execute the test cases, use `make test`. To pull in updated test cases, run `make testupdate`. You can also run a specific test case instead of all of them:
-
-```
-# Run all test cases:
-make test
-
-# Run a specific test case:
-make test run=4
-
-# Run a few specific test cases (4, 8, and 12 in this case):
-make test run='4 8 12'
-
-# Run a test case in gdb:
-make test run=4 debug=on
-```
-
-If you are satisfied with the state of your program, you can also run the test cases on the grading machine. Check your changes into your project repository and then run:
-
-```
-make grade
-```
 
 ## Execution flow
 
