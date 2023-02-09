@@ -1,4 +1,4 @@
-Command Line Shell in C
+# Command Line Shell in C
 This is a shell supporting basic commands, pipeline action and I/O redirection.
 
 Things you can do
